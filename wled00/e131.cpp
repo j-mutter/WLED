@@ -1,6 +1,6 @@
 #include "wled.h"
 
-#define MAX_3_CH_LEDS_PER_UNIVERSE 170
+#define MAX_3_CH_LEDS_PER_UNIVERSE 112
 #define MAX_4_CH_LEDS_PER_UNIVERSE 128
 #define MAX_CHANNELS_PER_UNIVERSE 512
 
@@ -264,13 +264,19 @@ void handleE131Packet(e131_packet_t* p, IPAddress clientIP, byte protocol){
           } else {
             ledsTotal = availDMXLen / dmxChannelsPerLed;
           }
+          if (ledsTotal > ledsPerUniverse) {
+            ledsTotal = ledsPerUniverse;
+          }
         } else {
           // All subsequent universes start at the first channel.
           dmxOffset = (protocol == P_ARTNET) ? 0 : 1;
           const uint16_t dimmerOffset = (DMXMode == DMX_MODE_MULTIPLE_DRGB) ? 1 : 0;
           uint16_t ledsInFirstUniverse = (((MAX_CHANNELS_PER_UNIVERSE - DMXAddress) + dmxLenOffset) - dimmerOffset) / dmxChannelsPerLed;
+          if (ledsInFirstUniverse > ledsPerUniverse) {
+            ledsInFirstUniverse = ledsPerUniverse;
+          }
           previousLeds = ledsInFirstUniverse + (previousUniverses - 1) * ledsPerUniverse;
-          ledsTotal = previousLeds + (dmxChannels / dmxChannelsPerLed);
+          ledsTotal = previousLeds + ledsPerUniverse;
         }
 
         // All LEDs already have values
@@ -296,11 +302,13 @@ void handleE131Packet(e131_packet_t* p, IPAddress clientIP, byte protocol){
           for (uint16_t i = previousLeds; i < ledsTotal; i++) {
             setRealtimePixel(i, e131_data[dmxOffset], e131_data[dmxOffset+1], e131_data[dmxOffset+2], 0);
             dmxOffset+=3;
+            if (dmxOffset/3 >= ledsPerUniverse) { break; }
           }
         } else {
           for (uint16_t i = previousLeds; i < ledsTotal; i++) {
             setRealtimePixel(i, e131_data[dmxOffset], e131_data[dmxOffset+1], e131_data[dmxOffset+2], e131_data[dmxOffset+3]);
             dmxOffset+=4;
+            if (dmxOffset/4 >= ledsPerUniverse) { break; }
           }
         }
         break;
